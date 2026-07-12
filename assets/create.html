@@ -1,0 +1,11 @@
+<label>
+	HMAC<br>
+	<small>Per-team flag derived from a secret: prefix{HMAC-SHA256(secret, account_id)[:16]}</small>
+</label>
+<div class="form-group">
+	<input type="text" class="form-control" name="content" value="{{ content }}" placeholder="Challenge secret (keep private)">
+</div>
+<div class="form-group">
+	<input type="text" class="form-control" name="data" value="{{ data }}" placeholder="Flag prefix (default: pbctf)">
+</div>
+<input type="hidden" name="type" value="hmac">
