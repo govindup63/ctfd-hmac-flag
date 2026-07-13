@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import hashlib
 import hmac
+import os
 import sys
 
 DIGEST_LENGTH = 16
-DEFAULT_PREFIX = "pbctf"
+DEFAULT_PREFIX = os.environ.get("HMAC_FLAG_PREFIX") or "pbctf"
 TICKET_CONTEXT = b"ticket:"
 
 
