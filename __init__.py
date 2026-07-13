@@ -27,6 +27,16 @@ def make_ticket(secret, account_id):
     return "%s.%s" % (account_id, sig)
 
 
+def parse_data(data):
+    """The flag's data field holds up to two lines: the prefix on line 1 and
+    an optional redirect URL on line 2. Legacy single-line values are treated
+    as a bare prefix, so existing flags keep working."""
+    lines = (data or "").splitlines()
+    prefix = (lines[0].strip() if lines else "") or DEFAULT_PREFIX
+    url = lines[1].strip() if len(lines) > 1 else ""
+    return prefix, url
+
+
 class HmacFlag(BaseFlag):
     name = "hmac"
     templates = {  # Nunjucks templates used for key editing & viewing
@@ -37,7 +47,7 @@ class HmacFlag(BaseFlag):
     @staticmethod
     def compare(chal_key_obj, provided):
         secret = chal_key_obj.content
-        prefix = chal_key_obj.data or DEFAULT_PREFIX
+        prefix, _ = parse_data(chal_key_obj.data)
 
         user = get_current_user()
         if user is None or user.account_id is None:
@@ -68,8 +78,12 @@ def load(app):
 
         ticket = make_ticket(flag.content, user.account_id)
 
-        conn = challenge.connection_info or ""
-        if conn.startswith(("http://", "https://")):
-            sep = "&" if "?" in conn else "?"
-            return redirect(conn + sep + "t=" + ticket)
+        # Prefer the redirect target configured on the flag (admin-only, never
+        # shown to players); fall back to Connection Info for older challenges.
+        _, target = parse_data(flag.data)
+        if not target:
+            target = challenge.connection_info or ""
+        if target.startswith(("http://", "https://")):
+            sep = "&" if "?" in target else "?"
+            return redirect(target + sep + "t=" + ticket)
         return jsonify({"success": True, "ticket": ticket})
