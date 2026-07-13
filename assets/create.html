@@ -1,12 +1,11 @@
 <label>
 	HMAC<br>
-	<small>Per-team flag derived from a secret: prefix{HMAC-SHA256(secret, account_id)[:16]}</small>
+	<small>Per-team flag: PREFIX{HMAC-SHA256(secret, account_id)[:16]}. Prefix is set per deployment via the HMAC_FLAG_PREFIX env var (default pbctf).</small>
 </label>
 <div class="form-group">
 	<input type="text" class="form-control" name="content" value="{{ content }}" placeholder="Challenge secret (keep private)">
 </div>
 <div class="form-group">
-	<label><small>Line 1: flag prefix (blank = pbctf). Line 2 (optional): redirect URL for the /hmac/ticket route.</small></label>
-	<textarea class="form-control" name="data" rows="2" placeholder="pbctf&#10;https://challenge.example.com">{{ data }}</textarea>
+	<input type="text" class="form-control" name="data" value="{{ data }}" placeholder="Redirect URL for the /hmac/ticket link (optional)">
 </div>
 <input type="hidden" name="type" value="hmac">

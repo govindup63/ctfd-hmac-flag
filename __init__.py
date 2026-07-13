@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import os
 
 from flask import abort, jsonify, redirect
 
@@ -10,7 +11,9 @@ from CTFd.utils.decorators import authed_only
 from CTFd.utils.user import get_current_user, is_admin
 
 DIGEST_LENGTH = 16
-DEFAULT_PREFIX = "pbctf"
+# Prefix is set once per deployment via the HMAC_FLAG_PREFIX env var; empty or
+# unset falls back to pbctf, so the default deployment needs no configuration.
+FLAG_PREFIX = os.environ.get("HMAC_FLAG_PREFIX") or "pbctf"
 TICKET_CONTEXT = b"ticket:"
 
 
@@ -27,16 +30,6 @@ def make_ticket(secret, account_id):
     return "%s.%s" % (account_id, sig)
 
 
-def parse_data(data):
-    """The flag's data field holds up to two lines: the prefix on line 1 and
-    an optional redirect URL on line 2. Legacy single-line values are treated
-    as a bare prefix, so existing flags keep working."""
-    lines = (data or "").splitlines()
-    prefix = (lines[0].strip() if lines else "") or DEFAULT_PREFIX
-    url = lines[1].strip() if len(lines) > 1 else ""
-    return prefix, url
-
-
 class HmacFlag(BaseFlag):
     name = "hmac"
     templates = {  # Nunjucks templates used for key editing & viewing
@@ -47,13 +40,12 @@ class HmacFlag(BaseFlag):
     @staticmethod
     def compare(chal_key_obj, provided):
         secret = chal_key_obj.content
-        prefix, _ = parse_data(chal_key_obj.data)
 
         user = get_current_user()
         if user is None or user.account_id is None:
             return False
 
-        expected = "%s{%s}" % (prefix, make_digest(secret, user.account_id))
+        expected = "%s{%s}" % (FLAG_PREFIX, make_digest(secret, user.account_id))
         return hmac.compare_digest(expected, provided)
 
 
@@ -78,11 +70,9 @@ def load(app):
 
         ticket = make_ticket(flag.content, user.account_id)
 
-        # Prefer the redirect target configured on the flag (admin-only, never
-        # shown to players); fall back to Connection Info for older challenges.
-        _, target = parse_data(flag.data)
-        if not target:
-            target = challenge.connection_info or ""
+        # Redirect target is the flag's data field (admin-only, never shown to
+        # players); fall back to Connection Info for older challenges.
+        target = (flag.data or "").strip() or (challenge.connection_info or "")
         if target.startswith(("http://", "https://")):
             sep = "&" if "?" in target else "?"
             return redirect(target + sep + "t=" + ticket)
